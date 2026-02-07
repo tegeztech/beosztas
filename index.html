@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+	
+	
+	<link rel="manifest" href="manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+	<link rel="apple-touch-icon" href="icon.png">
+
+    <title>Tegez Tech</title>
+    <style>
+	
+		/* Frissítés gomb stílusa (PWA web app) */
+.refresh-btn {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px; /* Inkább lekerekített négyzet, hogy passzoljon a beosztásod stílusához */
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    transition: all 0.2s ease;
+    padding: 0;
+}
+
+.refresh-btn:hover {
+    background: #f8f9fa;
+    border-color: #ccc;
+}
+
+.refresh-btn:active {
+    transform: scale(0.92);
+    background: #eeeeee;
+}
+
+/* SVG ikon stílusa - hogy szép vastag és középen legyen */
+.refresh-btn svg {
+    width: 24px;
+    height: 24px;
+    fill: none;
+    stroke: #333; /* Sötétszürke, hogy ne legyen túl harsány */
+    stroke-width: 2.5; /* Itt tudod állítani a vastagságot */
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* Csak akkor mutassuk, ha "app" módban vagyunk, 
+   mert böngészőben ott a gyári frissítő gomb */
+@media (display-mode: browser) {
+    .refresh-btn {
+        display: none;
+    }
+}
+
+        /* --- ALAPOK --- */
+        body { font-family: 'Segoe UI', sans-serif; background: #eceff1; margin: 0; padding: 20px; }
+        .container { max-width: 1200px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #263238; }
+        #status { text-align: center; padding: 10px; font-weight: bold; color: #0288d1; }
+        .table-wrapper { max-height: 70vh; overflow-y: auto; border: 1px solid #cfd8dc; border-radius: 8px; }
+        table { width: 100%; border-collapse: collapse; }
+        
+        /* --- ASZTALI NÉZET --- */
+        th { background: #455a64; color: white; padding: 12px; position: sticky; top: 0; z-index: 10; font-size: 13px; }
+        td { border: 1px solid #eceff1; padding: 8px; vertical-align: top; }
+        .col-date { width: 10%; text-align: center; }
+        .col-tech { width: 25%; }
+        .col-comment { width: 30%; }
+        .col-save { width: 10%; text-align: center; }
+
+        .szombat { background: #fff9c4 !important; border-left: 5px solid #fbc02d; }
+        .vasarnap { background: #fafafa; color: #c62828; }
+        .today-highlight { outline: 4px solid #ff9800; background-color: #fff3e0 !important; }
+
+        input, textarea { width: 100%; box-sizing: border-box; padding: 6px; margin-bottom: 4px; border: 1px solid #cfd8dc; border-radius: 4px; font-family: inherit; }
+        .label { font-size: 10px; color: #78909c; font-weight: bold; display: block; }
+        .auto-btn { background: #0288d1; color: white; border: none; padding: 8px; cursor: pointer; border-radius: 4px; width: 100%; font-weight: bold; margin-bottom: 5px; }
+        .save-btn { background: #43a047; color: white; border: none; padding: 10px; cursor: pointer; width: 100%; border-radius: 6px; font-weight: bold; transition: background 0.3s; }
+        .top-nav { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+        .today-btn { background: #ff9800; color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; }
+
+        /* Mobilos összefoglaló szöveg (PC-n rejtett) */
+        .mobile-info { display: none; font-size: 13px; color: #37474f; margin-top: 5px; }
+
+        /* --- MOBIL OPTIMALIZÁLÁS (768px alatt) --- */
+        @media screen and (max-width: 768px) {
+            .container { width: 100%; padding: 10px 5px; border-radius: 0; margin: 0; }
+            thead { display: none; }
+            tr { display: block; margin-bottom: 8px; border: 1px solid #cfd8dc; border-radius: 8px; background: #fff; padding: 10px; cursor: pointer; }
+            td { display: block; width: 100% !important; border: none; padding: 0; box-sizing: border-box; }
+            
+            /* Rejtjük a szerkesztő részt, amíg nincs kinyitva */
+            .input-wrapper, .auto-wrapper, .col-comment, .col-save { display: none; }
+            
+            /* Ha a sor aktív (nyitott) */
+            tr.active .input-wrapper, tr.active .auto-wrapper, tr.active .col-comment, tr.active .col-save { display: block; margin-top: 10px; }
+            tr.active .mobile-info { display: none; } /* Nyitott állapotban ne zavarjon az összefoglaló */
+            
+            .mobile-info { display: block; } /* Zárt állapotban látjuk a neveket */
+            .col-date { text-align: left; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 5px; }
+            
+            input, textarea { font-size: 16px !important; padding: 12px; } /* iOS zoom fix */
+            .save-btn { padding: 15px; margin-top: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="ios-prompt" style="display:none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: white; color: #333; padding: 15px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 10000; width: 85%; max-width: 320px; border: 1px solid #ddd; font-family: sans-serif;">
+  <div style="display: flex; align-items: center; gap: 10px;">
+    <div style="font-size: 24px;">📲</div>
+    <div>
+      <strong style="display: block; font-size: 14px;">Telepítés appként:</strong>
+      <span id="instruction-text" style="font-size: 13px; line-height: 1.4;"></span>
+    </div>
+    <button onclick="this.parentElement.parentElement.style.display='none'" style="background: none; border: none; font-size: 20px; color: #999; margin-left: auto;">×</button>
+  </div>
+</div>
+
+<div id="pwa-prompt" style="display:none; position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #ffffff; color: #1a1a1a; padding: 16px; border-radius: 16px; box-shadow: 0 8px 30px rgba(0,0,0,0.15); z-index: 9999; width: 90%; max-width: 350px; border: 1px solid #eee; font-family: sans-serif;">
+  <div style="display: flex; align-items: center; gap: 12px;">
+    <div style="font-size: 28px;">📱</div>
+    <div style="flex: 1;">
+      <b style="display: block; font-size: 15px;">Tegez Tech App Letöltése📥</b>
+      <span id="pwa-text" style="font-size: 13px; color: #444;"></span>
+    </div>
+    <button id="install-button" style="display:none; background: #0078d7; color: white; border: none; padding: 8px 12px; border-radius: 8px; font-weight: bold; font-size: 13px;">Telepítés</button>
+    <button onclick="document.getElementById('pwa-prompt').style.display='none'" style="background: none; border: none; color: #888; font-size: 20px;">✕</button>
+  </div>
+</div>
+
+<script>
+(function() {
+    var isiOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    var promptDiv = document.getElementById('pwa-prompt');
+    var textSpan = document.getElementById('pwa-text');
+    var installBtn = document.getElementById('install-button');
+
+    if (isStandalone) return;
+
+    // --- iOS LOGIKA ---
+    if (isiOS) {
+        setTimeout(function() {
+            if (promptDiv && textSpan) {
+                // Megosztás ikon - Most már kék nélkül (stroke="currentColor")
+                const shareIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin:0 2px;"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>`;
+                
+                // Továbbiak ikon
+                const dotsIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="display:inline-block; vertical-align:middle; margin:0 2px;"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="7.5" cy="12" r="1.2" fill="currentColor"/><circle cx="16.5" cy="12" r="1.2" fill="currentColor"/></svg>`;
+                
+                // Hozzáadás ikon
+                const plusIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin:0 2px;"><rect x="3" y="3" width="18" height="18" rx="4"></rect><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>`;
+
+                promptDiv.style.display = 'block';
+                if (installBtn) installBtn.style.display = 'none';
+                
+                textSpan.innerHTML = `Koppints a <b>Megosztás</b> ${shareIcon} ikonra, majd az alján a ${dotsIcon} <b>Továbbiak</b> menüre, végül válaszd a ${plusIcon} <b>Főképernyőhöz adás</b> opciót.`;
+            }
+        }, 1500);
+    }
+
+    // --- ANDROID LOGIKA ---
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        let deferredPrompt = e;
+        if (promptDiv && installBtn) {
+            promptDiv.style.display = 'block';
+            installBtn.style.display = 'block';
+            installBtn.innerText = 'Telepítés';
+            installBtn.onclick = async () => {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') promptDiv.style.display = 'none';
+                deferredPrompt = null;
+            };
+        }
+    });
+})();
+  
+</script>
+
+<div class="container">
+    <h2>📅 Szolgálati Beosztás</h2>
+    <div id="status">🔄️Szinkronizálás... ❌Kérlek várj!</div>
+    <div class="top-nav"><button class="today-btn" onclick="scrollToToday()">📍 Ugrás a mai naphoz</button></div>
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr><th>Dátum</th><th>Hangtechnikusok</th><th>Vetítősök</th><th>Megjegyzés</th><th>Mentés</th></tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const scriptURL = 'https://script.google.com/macros/s/AKfycbwA3SYISjnfDpznEbbLXFdu7G4aWkYD-Z3xgpoOpgPoNn4nNmFJd_-8n4FXGEs7UwhA_w/exec';
+
+async function init() {
+    generateCalendar();
+    await loadData();
+    setTimeout(scrollToToday, 500);
+}
+
+function generateCalendar() {
+    const tbody = document.getElementById('tableBody');
+    const ma = new Date();
+    let html = "";
+    for (let i = 0; i < 180; i++) {
+        let d = new Date(); d.setDate(ma.getDate() + i);
+        let iso = d.toISOString().split('T')[0];
+        let nap = d.getDay();
+        let cls = (nap === 6) ? "szombat" : (nap === 0 ? "vasarnap" : "");
+        
+        html += `<tr class="${cls}" id="row-${iso}" onclick="toggleRow(this)">
+            <td class="col-date">
+                <strong>${d.toLocaleDateString('hu-HU',{month:'short',day:'numeric'})}</strong> 
+                <small>(${d.toLocaleDateString('hu-HU',{weekday:'short'})})</small>
+                <div class="mobile-info" id="info-${iso}"><i>Erre a napra még nincs beosztás</i></div>
+            </td>
+            <td class="col-tech">
+                <div class="auto-wrapper"><button class="auto-btn"; autoFill('${iso}','hang')">Hangtechnikusok</button></div>
+                <div class="input-wrapper">
+                    <span class="label">FŐ Hangosító🎤:</span>
+                    <input id="h1-${iso}" oninput="updateInfo('${iso}')" onclick="event.stopPropagation()">
+                </div>
+                <div class="input-wrapper">
+                    <span class="label">TARTALÉKOS Hangosító🎤:</span>
+                    <input id="h2-${iso}" oninput="updateInfo('${iso}')" onclick="event.stopPropagation()">
+                </div>
+            </td>
+            <td class="col-tech">
+                <div class="auto-wrapper"><button class="auto-btn"; autoFill('${iso}','vetito')">Vetítősök</button></div>
+                <div class="input-wrapper">
+                    <span class="label">FŐ Vetítő💻:</span>
+                    <input id="v1-${iso}" oninput="updateInfo('${iso}')" onclick="event.stopPropagation()">
+                </div>
+                <div class="input-wrapper">
+                    <span class="label">TARTALÉKOS Vetítő💻:</span>
+                    <input id="v2-${iso}" oninput="updateInfo('${iso}')" onclick="event.stopPropagation()">
+                </div>
+            </td>
+            <td class="col-comment">
+                <textarea id="m-${iso}" placeholder="Megjegyzés... (pl: [Neved]: nem tudok jönni) &#10; Ne felejtsd el menteni!" onclick="event.stopPropagation()"></textarea>
+            </td>
+            <td class="col-save">
+                <button class="save-btn" id="s-${iso}" onclick="event.stopPropagation(); saveRow('${iso}')">Mentés</button>
+            </td>
+        </tr>`;
+    }
+    tbody.innerHTML = html;
+}
+
+// Mobilos sor-nyitás kezelő
+function toggleRow(row) {
+    if (window.innerWidth > 768) return; // PC-n ne csináljon semmit
+    const isActive = row.classList.contains('active');
+    
+    // Csak akkor zárunk be mindent, ha újat nyitunk ki
+    if (!isActive) {
+        document.querySelectorAll('tr').forEach(r => r.classList.remove('active'));
+        row.classList.add('active');
+        setTimeout(() => {
+            row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 200);
+    } else {
+        // Ha a már nyitottra kattint (nem az inputra!), akkor becsukja
+        row.classList.remove('active');
+    }
+}
+
+// Összegző frissítése (tartalékosokkal)
+function updateInfo(iso) {
+    const h1 = document.getElementById(`h1-${iso}`).value.trim();
+    const h2 = document.getElementById(`h2-${iso}`).value.trim();
+    const v1 = document.getElementById(`v1-${iso}`).value.trim();
+    const v2 = document.getElementById(`v2-${iso}`).value.trim();
+    const infoBox = document.getElementById(`info-${iso}`);
+    
+    if (!infoBox) return;
+
+    if (h1 || h2 || v1 || v2) {
+        let hangResz = h1 + (h2 ? ` (${h2})` : "");
+        let vetitoResz = v1 + (v2 ? ` (${v2})` : "");
+        
+        let szoveg = "";
+        if (h1 || h2) szoveg += `🎤 ${hangResz} `;
+        if (v1 || v2) szoveg += (szoveg ? " | " : "") + `💻 ${vetitoResz}`;
+        
+        infoBox.innerHTML = szoveg;
+        infoBox.style.color = "#2e7d32";
+        infoBox.style.fontStyle = "normal";
+    } else {
+        infoBox.innerHTML = "<i>Erre a napra még nincs beosztás</i>";
+        infoBox.style.color = "#78909c";
+    }
+}
+
+async function loadData() {
+    try {
+        const res = await fetch(scriptURL);
+        const data = await res.json();
+        data.forEach((row, idx) => {
+            if (idx === 0) return;
+            let d = row[0];
+            if(document.getElementById(`h1-${d}`)) {
+                document.getElementById(`h1-${d}`).value = row[1]||""; 
+                document.getElementById(`h2-${d}`).value = row[2]||"";
+                document.getElementById(`v1-${d}`).value = row[3]||""; 
+                document.getElementById(`v2-${d}`).value = row[4]||"";
+                document.getElementById(`m-${d}`).value = row[5]||"";
+                updateInfo(d); // Betöltéskor is frissítjük a mobil nézetet
+            }
+        });
+        document.getElementById('status').innerText = "✅ Adatok betöltve.";
+    } catch(e) { 
+        document.getElementById('status').innerText = "⚠️ Hiba a betöltésnél."; 
+    }
+}
+
+async function autoFill(iso, tipus) {
+    const btn = event.target;
+    const originalText = btn.innerText;
+    btn.innerText = "⏳..."; btn.disabled = true;
+    try {
+        const res = await fetch(scriptURL + "?action=getAutoBeosztas");
+        const data = await res.json();
+        let lista = (tipus === 'hang') ? (data.hangLista || []) : (data.vetitoLista || []);
+        let busy = [document.getElementById(`h1-${iso}`).value, document.getElementById(`h2-${iso}`).value, 
+                    document.getElementById(`v1-${iso}`).value, document.getElementById(`v2-${iso}`).value].filter(n => n);
+        let talalt = [];
+        for (let n of lista) { if(!busy.includes(n)) talalt.push(n); if(talalt.length === 2) break; }
+        
+        if(tipus === 'hang') {
+            document.getElementById(`h1-${iso}`).value = talalt[0] || "";
+            document.getElementById(`h2-${iso}`).value = talalt[1] || "";
+        } else {
+            document.getElementById(`v1-${iso}`).value = talalt[0] || "";
+            document.getElementById(`v2-${iso}`).value = talalt[1] || "";
+        }
+        updateInfo(iso);
+    } catch(e) { alert("Hiba az auto-kitöltésnél!"); }
+    btn.innerText = originalText; btn.disabled = false;
+}
+
+async function saveRow(iso) {
+    const h1v = document.getElementById(`h1-${iso}`).value.trim();
+    const h2v = document.getElementById(`h2-${iso}`).value.trim();
+    const v1v = document.getElementById(`v1-${iso}`).value.trim();
+    const v2v = document.getElementById(`v2-${iso}`).value.trim();
+    const n = [h1v, h2v, v1v, v2v].filter(x => x!=="");
+    
+    if(new Set(n).size !== n.length) { alert("❌ Hiba: Egy név csak egyszer szerepelhet!"); return; }
+    
+    const btn = document.getElementById(`s-${iso}`);
+    const originalBg = btn.style.background;
+    btn.innerText = "⏳ Mentés..."; btn.disabled = true;
+
+    const payload = { datum: iso, h1: h1v, h2: h2v, v1: v1v, v2: v2v, m: document.getElementById(`m-${iso}`).value };
+    
+    try {
+        await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+        btn.innerText = "✅ KÉSZ";
+        btn.style.background = "#43a047";
+        updateInfo(iso);
+        setTimeout(() => { 
+            btn.innerText = "Mentés"; 
+            btn.disabled = false;
+            btn.style.background = originalBg;
+            if (window.innerWidth <= 768) {
+                document.getElementById(`row-${iso}`).classList.remove('active'); // Mobilon mentés után becsukjuk
+            }
+        }, 1500);
+    } catch(e) { 
+        alert("Hiba a mentés során!"); 
+        btn.innerText = "Mentés"; 
+        btn.disabled = false; 
+    }
+}
+
+function scrollToToday() {
+    const d = new Date().toISOString().split('T')[0];
+    const r = document.getElementById(`row-${d}`);
+    if(r) { 
+        r.classList.add('today-highlight'); 
+        r.scrollIntoView({ behavior: 'smooth', block: 'center' }); 
+    }
+}
+window.onload = init;
+</script>
+
+<button class="refresh-btn" onclick="window.location.reload();" title="Frissítés">
+    <svg viewBox="0 0 24 24">
+        <path d="M23 4v6h-6"></path>
+        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+    </svg>
+</button>
+
+</body>
+</html>
