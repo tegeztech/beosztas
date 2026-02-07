@@ -1,0 +1,16 @@
+{
+  "short_name": "Tegez Tech",
+  "name": "Tegez Technika Beosztás",
+  "display": "standalone",
+  "start_url": "/tegez-tech/",
+  "theme_color": "#000000",
+  "background_color": "#ffffff",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
