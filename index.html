@@ -203,7 +203,21 @@ select:focus{border-color:var(--pri);box-shadow:0 0 0 3px rgba(37,99,235,.15)}
 </section>
 
 <script>
-const scriptURL='https://script.google.com/macros/s/AKfycbx_4lLmU8AFwZN_HITmVGtDuE_w5867Yx6iukoroUdD5H4N9c078UjT2h11veDjnWzY-w/exec';
+const DEFAULT_URL='https://script.google.com/macros/s/AKfycbx_4lLmU8AFwZN_HITmVGtDuE_w5867Yx6iukoroUdD5H4N9c078UjT2h11veDjnWzY-w/exec';
+/* Opcionális közös beállítás: a Google Táblázat „Közzététel az internetre” CSV-linkje, amelyben szerepel az aktuális …/exec URL.
+   Ha ez ki van töltve, az app induláskor onnan veszi át az új URL-t, így új üzembe helyezésnél nem kell a kódot átírni. */
+const CONFIG_CSV='';
+const UK='tt_api_url',UC='tt_api_url_cfg',URL_RE=/https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec/;
+let scriptURL=DEFAULT_URL,URL_SRC='beépített';
+try{const o=localStorage.getItem(UK),c=CONFIG_CSV&&localStorage.getItem(UC);if(o&&URL_RE.test(o)){scriptURL=o;URL_SRC='kézi beállítás'}else if(c&&URL_RE.test(c)){scriptURL=c;URL_SRC='táblázatból'}}catch(e){}
+async function syncUrl(){
+  if(!CONFIG_CSV||URL_SRC==='kézi beállítás')return;
+  try{const to=ms=>new Promise((_,j)=>setTimeout(()=>j(0),ms)),
+      t=await Promise.race([fetch(CONFIG_CSV+(CONFIG_CSV.includes('?')?'&':'?')+'t='+Date.now()).then(r=>r.text()),to(4000)]),m=String(t).match(URL_RE);
+    if(m&&m[0]!==scriptURL){const p=await Promise.race([fetch(m[0]+'?action=ping').then(r=>r.json()),to(6000)]);
+      if(p&&p.ok){scriptURL=m[0];URL_SRC='táblázatból';try{localStorage.setItem(UC,m[0])}catch(e){}}}
+    else if(m)URL_SRC='táblázatból'}catch(e){}
+}
 const CK='tt_civil_cache'; /* külön kulcs, mert az admin és a civil oldal ugyanazon a domainen van */
 const $=id=>document.getElementById(id);
 const ico=n=>`<svg class="i"><use href="#i-${n}"/></svg>`;
@@ -381,7 +395,7 @@ function openSettings(){if(document.body.classList.contains('v-set'))return;sy=s
 function goBack(){if(location.hash==='#beallitasok')history.back();else{history.replaceState(null,'',location.pathname+location.search);showView()}}
 addEventListener('popstate',showView);
 function renderSettings(){if(!ME)return;
-  $('st-name').textContent=ME.nev;$('st-role').textContent=ME.h&&ME.v?'Hangosító és vetítő':ME.h?'Hangosító':'Vetítő';
+  $('st-name').textContent=ME.nev;$('st-role').textContent=ME.h&&ME.v?'Hangosító és vetítő':ME.h?'Hangosító':ME.v?'Vetítő':'Kézi beosztás';
   const c=$('ecard');if(!c.classList.contains('dirty')){$('em').value=ME.email;emChg()}}
 function emChg(show){if(!ME)return;
   const v=$('em').value.trim(),bad=!!v&&!mailOk(v),ch=mailOk(v)&&v.toLowerCase()!==ME.email.toLowerCase(),c=$('ecard');
@@ -402,9 +416,10 @@ async function emSave(){
 const day0=ymd(new Date());
 const chk=()=>{if(ymd(new Date())!==day0&&!document.querySelector('.card.dirty'))location.reload()};
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)chk()});setInterval(chk,60000);
-window.onload=()=>{
+window.onload=async()=>{
   build();{const t0=document.querySelector('.card.tdy.wkday');if(t0)regroup(t0)}st('Szinkronizálás... Kérlek várj!');
   setTimeout(scrollToToday,300);
+  await syncUrl();
   loadData();
   showView();showMe();if(ME)verify();else loadNev();
 };
