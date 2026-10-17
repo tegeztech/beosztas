@@ -126,7 +126,9 @@ select:focus{border-color:var(--pri);box-shadow:0 0 0 3px rgba(37,99,235,.15)}
 .mep span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mep b{font-weight:800}
 #lg-retry{display:none;margin-top:10px}
 .lerr small{display:block;margin-top:6px;font-weight:500;opacity:.85;word-break:break-word}
+.rbtn{display:none}html.sa .rbtn{display:flex}
 </style>
+<script>try{if(navigator.standalone||['standalone','fullscreen','minimal-ui'].some(function(m){return matchMedia('(display-mode: '+m+')').matches}))document.documentElement.classList.add('sa')}catch(e){}</script>
 </head>
 <body>
 <script>try{if(!localStorage.getItem('tt_civil_login'))document.body.className='nologin'}catch(e){document.body.className='nologin'}</script>
@@ -165,7 +167,7 @@ select:focus{border-color:var(--pri);box-shadow:0 0 0 3px rgba(37,99,235,.15)}
 
 
 <div id="login">
-  <header class="bar"><div class="ttl"><svg class="i"><use href="#i-cal"/></svg><div><b>Szolgálati beosztás</b><small>TEGEZ Ifi technika</small></div></div></header>
+  <header class="bar"><div class="ttl"><svg class="i"><use href="#i-cal"/></svg><div><b>Szolgálati beosztás</b><small>TEGEZ Ifi technika</small></div></div><button class="rbtn" onclick="location.reload()" title="Frissítés" aria-label="Oldal újratöltése"><svg class="i"><use href="#i-ref"/></svg></button></header>
   <div class="lg"><div class="lcard">
     <div class="lh"><span class="lic"><svg class="i"><use href="#i-user"/></svg></span><h1>Bejelentkezés</h1><p>Válaszd ki a neved, és add meg az e-mail címedet.</p></div>
     <label class="lf"><span class="lb"><svg class="i"><use href="#i-user"/></svg> Neved</span>
